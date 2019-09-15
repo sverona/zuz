@@ -29,7 +29,7 @@ def pattern_to_regex(pattern):
     """
     """
 
-    # TODO Smarten this up.
+    # TODO Smarten this up (on a per-letter basis.)
     range_regex = re.compile("(\\?|\\*|\\[[A-Z-]*\\])")
     ranges = re.findall(range_regex, pattern)
     ranges = ['[A-Z]' if range_ == '?' else range_ for range_ in ranges]
@@ -56,7 +56,7 @@ def pattern_to_regex(pattern):
 
         patterns = list(set(patterns))
 
-        return "(%s)" % "|".join(patterns)
+        return f"({'|'.join(patterns)})"
 
 
 def __main__():
@@ -104,7 +104,7 @@ def __main__():
         pattern = sort_pattern(pattern)
         regex = pattern_to_regex(pattern)
 
-    regex = "\\b%s\\b" % regex
+    regex = f"\\b{regex}\\b"
     print(regex)
 
     with open("dicts/NWL2018.tsv") as lexicon:
