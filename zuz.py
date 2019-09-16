@@ -2,6 +2,7 @@ import re
 import string
 import itertools as it
 from argparse import ArgumentParser
+from csv import DictReader
 
 
 def num_vowels(word):
@@ -164,48 +165,54 @@ def __main__():
     regex = f"^{regex}\\b"
     print(regex)
 
-    with open("dicts/NWL2018.tsv") as lexicon:
-        words = lexicon.read().splitlines()
+    with open("dicts/NWL2018.tsv") as tsv:
+        reader = DictReader(tsv, delimiter="\t")
+        words = {row["alphagram"]: row for row in reader}
 
-        matching_words = [
-            word.split("\t")[0] for word in words if re.match(regex, word)
-        ]
+        matching_words = {
+            alphagram: word
+            for alphagram, word in words.items()
+            if re.match(regex, alphagram)
+        }
 
-        if args.length:
-            range_ = parse_range(args.length)
-            matching_words = [word for word in matching_words if len(word) in range_]
-        if args.num_vowels:
-            range_ = parse_range(args.num_vowels)
-            matching_words = [
-                word for word in matching_words if num_vowels(word) in range_
-            ]
-        if args.num_consonants:
-            range_ = parse_range(args.num_consonants)
-            matching_words = [
-                word for word in matching_words if num_consonants(word) in range_
-            ]
-        if args.percent_vowels:
-            range_ = parse_range(args.percent_vowels)
-            matching_words = [
-                word
-                for word in matching_words
-                if num_vowels(word) // len(word) * 100 in range_
-            ]
-        if args.percent_consonants:
-            range_ = parse_range(args.percent_consonants)
-            matching_words = [
-                word
-                for word in matching_words
-                if num_consonants(word) // len(word) * 100 in range_
-            ]
+        def select(words, field, range_):
+            if not range_:
+                return words
+            range_ = parse_range(range_)
+            return {
+                alphagram: word
+                for alphagram, word in words.items()
+                if int(field(word)) in range_
+            }
+
+        matching_words = select(
+            matching_words, lambda word: word["length"], args.length
+        )
+        matching_words = select(
+            matching_words, lambda word: word["num_vowels"], args.num_vowels
+        )
+        matching_words = select(
+            matching_words, lambda word: word["num_consonants"], args.num_consonants
+        )
+        matching_words = select(
+            matching_words, lambda word: word["percent_vowels"], args.percent_vowels
+        )
+        matching_words = select(
+            matching_words,
+            lambda word: word["percent_consonants"],
+            args.percent_consonants,
+        )
+
         if args.point_value:
             range_ = parse_range(args.point_value)
-            matching_words = [
-                word for word in matching_words if point_value(word) in range_
-            ]
+            matching_words = {
+                alphagram: word
+                for alphagram, word in matching_words.items()
+                if point_value(alphagram) in range_
+            }
 
-        for word in matching_words:
-            print(word)
+        for alphagram, word in matching_words.items():
+            print("\t".join(v for k, v in word.items() if k != "definition"))
 
 
 if __name__ == "__main__":
