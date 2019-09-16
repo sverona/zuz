@@ -118,14 +118,14 @@ def pattern_to_regex(pattern):
 
 def __main__():
     parser = ArgumentParser(description="")
-    parser.add_argument("-2", action="store_const", dest="length", const=2)
-    parser.add_argument("-3", action="store_const", dest="length", const=3)
-    parser.add_argument("-4", action="store_const", dest="length", const=4)
-    parser.add_argument("-5", action="store_const", dest="length", const=5)
-    parser.add_argument("-6", action="store_const", dest="length", const=6)
-    parser.add_argument("-7", action="store_const", dest="length", const=7)
-    parser.add_argument("-8", action="store_const", dest="length", const=8)
-    parser.add_argument("-9", action="store_const", dest="length", const=9)
+    parser.add_argument("-2", action="append_const", dest="length", const=2)
+    parser.add_argument("-3", action="append_const", dest="length", const=3)
+    parser.add_argument("-4", action="append_const", dest="length", const=4)
+    parser.add_argument("-5", action="append_const", dest="length", const=5)
+    parser.add_argument("-6", action="append_const", dest="length", const=6)
+    parser.add_argument("-7", action="append_const", dest="length", const=7)
+    parser.add_argument("-8", action="append_const", dest="length", const=8)
+    parser.add_argument("-9", action="append_const", dest="length", const=9)
 
     parser.add_argument("-a", "--anagram", action="store_true")
     parser.add_argument("-s", "--subanagram", action="store_true")
@@ -163,7 +163,7 @@ def __main__():
         regex = pattern_to_regex(pattern)
 
     regex = f"^{regex}\\b"
-    print(regex)
+    # print(regex)
 
     with open("dicts/NWL2018.tsv") as tsv:
         reader = DictReader(tsv, delimiter="\t")
@@ -178,7 +178,9 @@ def __main__():
         def select(words, field, range_):
             if not range_:
                 return words
-            range_ = parse_range(range_)
+
+            if isinstance(range_, str):
+                range_ = parse_range(range_)
             return {
                 alphagram: word
                 for alphagram, word in words.items()
@@ -212,7 +214,7 @@ def __main__():
             }
 
         for alphagram, word in matching_words.items():
-            print("\t".join(v for k, v in word.items() if k != "definition"))
+            print("\t".join(v for k, v in word.items()))
 
 
 if __name__ == "__main__":
