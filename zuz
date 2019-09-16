@@ -1,3 +1,3 @@
 #!/bin/sh
 
-python zuz.py "$@"
+python zuz.py "$@" | column -s$'\t' -t | sort -k1
