@@ -3,7 +3,6 @@ import string
 import pickle
 import itertools as it
 from argparse import ArgumentParser
-from csv import DictReader
 
 
 def num_vowels(word):
@@ -51,16 +50,18 @@ def point_value(word):
 
 
 def parse_range(range_):
-    # TODO do this properly, returning a predicate
-    # TODO handle commas
-    limits = range_.split("-")
-    if limits[0] == "":
-        limits[0] = 0
-    if limits[-1] == "":
-        limits[-1] = 10 ** 12
-    limits = [int(lim) for lim in limits]
+    parsed_ranges = []
+    for range__ in range_.split(","):
+        limits = range__.split("-")
+        if limits[0] == "":
+            limits[0] = 0
+        if limits[-1] == "":
+            limits[-1] = 10 ** 12
+        limits = [int(lim) for lim in limits]
 
-    return range(min(limits), max(limits) + 1)
+        parsed_ranges.append(range(min(limits), max(limits) + 1))
+
+    return lambda x: any(x in range_ for range_ in parsed_ranges)
 
 
 def clean_pattern(pattern):
@@ -90,7 +91,16 @@ def pattern_to_regex(pattern):
     # TODO Smarten this up (on a per-letter basis.)
     range_regex = re.compile("(\\?|\\*|\\[[A-Z-]*\\])")
     ranges = re.findall(range_regex, pattern)
-    ranges = ["[A-Z]" if range_ == "?" else range_ for range_ in ranges]
+
+    def range_to_regex(range_):
+        if range_ == "?":
+            return "[A-Z]"
+        elif range_ == "*":
+            return "[A-Z]*"
+        else:
+            return range
+
+    ranges = [range_to_regex(range_) for range_ in ranges]
     non_ranges = re.sub(range_regex, "", pattern)
 
     def insert_ranges(pat, ranges, positions):
@@ -146,7 +156,7 @@ def __main__():
 
     parser.add_argument("--long", action="store_true")
 
-    parser.add_argument("pattern", metavar="PATTERN")
+    parser.add_argument("pattern", metavar="PATTERN", nargs="?", default="\\*")
 
     args = parser.parse_args()
 
@@ -182,11 +192,11 @@ def __main__():
                 return words
 
             if isinstance(range_, str):
-                range_ = parse_range(range_)
+                in_range = parse_range(range_)
             return {
                 alphagram: word
                 for alphagram, word in words.items()
-                if int(field(word)) in range_
+                if in_range(int(field(word)))
             }
 
         matching_words = select(
@@ -206,18 +216,11 @@ def __main__():
             lambda word: word["percent_consonants"],
             args.percent_consonants,
         )
-
-        if args.point_value:
-            range_ = parse_range(args.point_value)
-            matching_words = {
-                alphagram: word
-                for alphagram, word in matching_words.items()
-                if point_value(alphagram) in range_
-            }
+        matching_words = select(matching_words, point_value, args.point_value)
 
         for alphagram, word in matching_words.items():
             if args.long:
-                print("\t".join(word.values()))
+                print("\t".join(str(v) for v in word.values()))
             else:
                 print("\t".join([word["alphagram"], word["word"], word["definition"]]))
 

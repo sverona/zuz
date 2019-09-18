@@ -66,5 +66,6 @@ def __main__():
         with open(args.output, "wb") as out:
             pickle.dump(lexicon, out)
 
+
 if __name__ == "__main__":
     __main__()
