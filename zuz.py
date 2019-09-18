@@ -155,6 +155,7 @@ def __main__():
     parser.add_argument("--point-value", "--score")
 
     parser.add_argument("--long", action="store_true")
+    parser.add_argument("--separate", action="store_true")
 
     parser.add_argument("pattern", metavar="PATTERN", nargs="?", default="\\*")
 
@@ -193,10 +194,12 @@ def __main__():
 
             if isinstance(range_, str):
                 in_range = parse_range(range_)
+            else:
+                in_range = lambda x: x in range_
             return {
-                alphagram: word
-                for alphagram, word in words.items()
-                if in_range(int(field(word)))
+                word: worddata
+                for word, worddata in words.items()
+                if in_range(int(field(worddata)))
             }
 
         matching_words = select(
@@ -218,11 +221,27 @@ def __main__():
         )
         matching_words = select(matching_words, point_value, args.point_value)
 
-        for alphagram, word in matching_words.items():
+        alphagram = None
+        for word, worddata in matching_words.items():
+            if (
+                args.separate
+                and alphagram is not None
+                and alphagram != worddata["alphagram"]
+            ):
+                print()
             if args.long:
-                print("\t".join(str(v) for v in word.values()))
+                print("\t".join(str(v) for v in worddata.values()))
             else:
-                print("\t".join([word["alphagram"], word["word"], word["definition"]]))
+                print(
+                    "\t".join(
+                        [
+                            worddata["alphagram"],
+                            worddata["word"],
+                            worddata["definition"],
+                        ]
+                    )
+                )
+            alphagram = worddata["alphagram"]
 
 
 if __name__ == "__main__":
