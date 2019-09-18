@@ -1,6 +1,7 @@
 import re
 from argparse import ArgumentParser
 import csv
+import pickle
 
 
 def build_lexicon(wordlist):
@@ -64,7 +65,9 @@ def __main__():
 
     lexicon = build_lexicon(args.wordlist)
     if args.output:
-        with open(args.output, "w") as tsv:
+        with open(args.output, "wb") as out:
+            pickle.dump(lexicon, out)
+            """
             fields = lexicon["AA"].keys()
             writer = csv.DictWriter(tsv, fieldnames=fields, dialect=csv.excel_tab)
 
@@ -72,6 +75,7 @@ def __main__():
             for word_row in lexicon.values():
                 writer.writerow(word_row)
 
+            """
 
 if __name__ == "__main__":
     __main__()

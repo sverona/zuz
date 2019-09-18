@@ -1,5 +1,6 @@
 import re
 import string
+import pickle
 import itertools as it
 from argparse import ArgumentParser
 from csv import DictReader
@@ -51,6 +52,7 @@ def point_value(word):
 
 def parse_range(range_):
     # TODO do this properly, returning a predicate
+    # TODO handle commas
     limits = range_.split("-")
     if limits[0] == "":
         limits[0] = 0
@@ -131,7 +133,7 @@ def __main__():
     parser.add_argument("-s", "--subanagram", action="store_true")
     parser.add_argument("-e", "--exact", action="store_true")
 
-    parser.add_argument("-d", "--dict", "--dictionary")
+    parser.add_argument("-d", "--dict", "--dictionary", default="NWL2018")
 
     parser.add_argument("-l", "--length")
     parser.add_argument("-v", "--num-vowels", "--vowels")
@@ -141,6 +143,8 @@ def __main__():
     parser.add_argument("-p", "--probability-order")
     parser.add_argument("-P", "--playability-order")
     parser.add_argument("--point-value", "--score")
+
+    parser.add_argument("--long", action="store_true")
 
     parser.add_argument("pattern", metavar="PATTERN")
 
@@ -163,16 +167,14 @@ def __main__():
         regex = pattern_to_regex(pattern)
 
     regex = f"^{regex}\\b"
-    # print(regex)
 
-    with open("dicts/NWL2018.tsv") as tsv:
-        reader = DictReader(tsv, delimiter="\t")
-        words = {row["alphagram"]: row for row in reader}
+    with open(f"dicts/{args.dict}.pickle", "rb") as infile:
+        words = pickle.load(infile)
 
         matching_words = {
-            alphagram: word
-            for alphagram, word in words.items()
-            if re.match(regex, alphagram)
+            word: values
+            for word, values in words.items()
+            if re.match(regex, values["alphagram"])
         }
 
         def select(words, field, range_):
@@ -214,7 +216,10 @@ def __main__():
             }
 
         for alphagram, word in matching_words.items():
-            print("\t".join(v for k, v in word.items()))
+            if args.long:
+                print("\t".join(word.values()))
+            else:
+                print("\t".join([word["alphagram"], word["word"], word["definition"]]))
 
 
 if __name__ == "__main__":
