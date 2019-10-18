@@ -1,5 +1,62 @@
 from argparse import ArgumentParser
+from collections import Counter
 import pickle
+from functools import lru_cache
+
+
+FREQUENCIES = {
+    "A": 9,
+    "B": 2,
+    "C": 2,
+    "D": 4,
+    "E": 12,
+    "F": 2,
+    "G": 3,
+    "H": 2,
+    "I": 9,
+    "J": 1,
+    "K": 1,
+    "L": 4,
+    "M": 2,
+    "N": 6,
+    "O": 8,
+    "P": 2,
+    "Q": 1,
+    "R": 6,
+    "S": 4,
+    "T": 6,
+    "U": 4,
+    "V": 2,
+    "W": 2,
+    "X": 1,
+    "Y": 2,
+    "Z": 1,
+    "?": 2,
+}
+
+
+@lru_cache()
+def combinations(n, k):
+    """Return the binomial coefficient (n, k).
+    """
+    if n - k < k:
+        return combinations(n, n - k)
+    num, dem = 1, 1
+    for i in range(1, n - k + 1):
+        num *= n - i + 1
+        dem *= i
+    return num // dem
+
+
+def compute_probability(word):
+    desirable_racks = 1
+    counts = Counter(word)
+    for letter, count in counts.items():
+        desirable_racks *= combinations(FREQUENCIES[letter], count)
+
+    total_racks = combinations(100, len(word))
+
+    return desirable_racks / total_racks
 
 
 def build_lexicon(wordlist):
@@ -30,7 +87,9 @@ def build_lexicon(wordlist):
 
             lexicon[word]["length"] = len(word)
             lexicon[word]["vowels"] = len([c for c in word if c in "AEIOU"])
-            lexicon[word]["pct_vowels"] = 100 * lexicon[word]["vowels"] // len(word)
+            lexicon[word]["pct_vowels"] = (
+                100 * lexicon[word]["vowels"] // len(word)
+            )
             lexicon[word]["consonants"] = len(word) - lexicon[word]["vowels"]
             lexicon[word]["pct_consonants"] = 100 - lexicon[word]["pct_vowels"]
 

@@ -120,7 +120,9 @@ def pattern_to_regex(pattern):
         patterns = [
             insert_ranges(non_ranges, permuted_ranges, pos)
             for permuted_ranges in it.permutations(ranges)
-            for pos in it.product(range(len(non_ranges) + 1), repeat=len(ranges))
+            for pos in it.product(
+                range(len(non_ranges) + 1), repeat=len(ranges)
+            )
         ]
 
         patterns = list(set(patterns))
@@ -128,39 +130,7 @@ def pattern_to_regex(pattern):
         return f"({'|'.join(patterns)})"
 
 
-def __main__():
-    parser = ArgumentParser(description="")
-    parser.add_argument("-2", action="append_const", dest="length", const=2)
-    parser.add_argument("-3", action="append_const", dest="length", const=3)
-    parser.add_argument("-4", action="append_const", dest="length", const=4)
-    parser.add_argument("-5", action="append_const", dest="length", const=5)
-    parser.add_argument("-6", action="append_const", dest="length", const=6)
-    parser.add_argument("-7", action="append_const", dest="length", const=7)
-    parser.add_argument("-8", action="append_const", dest="length", const=8)
-    parser.add_argument("-9", action="append_const", dest="length", const=9)
-
-    parser.add_argument("-a", "--anagram", action="store_true")
-    parser.add_argument("-s", "--subanagram", action="store_true")
-    parser.add_argument("-e", "--exact", action="store_true")
-
-    parser.add_argument("-d", "--dict", "--dictionary", default="NWL2018")
-
-    parser.add_argument("-l", "--length")
-    parser.add_argument("-v", "--num-vowels", "--vowels")
-    parser.add_argument("-c", "--num-consonants", "--consonants")
-    parser.add_argument("-V", "--percent-vowels", "--pct-vowels")
-    parser.add_argument("-C", "--percent-consonants", "--pct-consonants")
-    parser.add_argument("-p", "--probability-order")
-    parser.add_argument("-P", "--playability-order")
-    parser.add_argument("--point-value", "--score")
-
-    parser.add_argument("--long", action="store_true")
-    parser.add_argument("--separate", action="store_true")
-
-    parser.add_argument("pattern", metavar="PATTERN", nargs="?", default="\\*")
-
-    args = parser.parse_args()
-
+def search(lexicon, args):
     pattern = clean_pattern(args.pattern)
 
     if args.exact:
@@ -179,69 +149,118 @@ def __main__():
 
     regex = f"^{regex}\\b"
 
-    with open(f"dicts/{args.dict}.pickle", "rb") as infile:
-        words = pickle.load(infile)
+    matching_words = {
+        word: values
+        for word, values in lexicon.items()
+        if re.match(regex, values["alphagram"])
+    }
 
-        matching_words = {
-            word: values
-            for word, values in words.items()
-            if re.match(regex, values["alphagram"])
+    def select(words, field, range_):
+        if not range_:
+            return words
+
+        if isinstance(range_, str):
+            in_range = parse_range(range_)
+        else:
+            def in_range(val):
+                return val in range_
+        return {
+            word: worddata
+            for word, worddata in words.items()
+            if in_range(int(field(worddata)))
         }
 
-        def select(words, field, range_):
-            if not range_:
-                return words
+    matching_words = select(
+        matching_words, lambda word: word["length"], args.length
+    )
+    matching_words = select(
+        matching_words, lambda word: word["vowels"], args.vowels
+    )
+    matching_words = select(
+        matching_words, lambda word: word["consonants"], args.consonants
+    )
+    matching_words = select(
+        matching_words,
+        lambda word: word["percent_vowels"],
+        args.percent_vowels,
+    )
+    matching_words = select(
+        matching_words,
+        lambda word: word["percent_consonants"],
+        args.percent_consonants,
+    )
+    matching_words = select(matching_words, point_value, args.point_value)
 
-            if isinstance(range_, str):
-                in_range = parse_range(range_)
-            else:
-                in_range = lambda x: x in range_
-            return {
-                word: worddata
-                for word, worddata in words.items()
-                if in_range(int(field(worddata)))
-            }
+    return matching_words
 
-        matching_words = select(
-            matching_words, lambda word: word["length"], args.length
-        )
-        matching_words = select(
-            matching_words, lambda word: word["num_vowels"], args.num_vowels
-        )
-        matching_words = select(
-            matching_words, lambda word: word["num_consonants"], args.num_consonants
-        )
-        matching_words = select(
-            matching_words, lambda word: word["percent_vowels"], args.percent_vowels
-        )
-        matching_words = select(
-            matching_words,
-            lambda word: word["percent_consonants"],
-            args.percent_consonants,
-        )
-        matching_words = select(matching_words, point_value, args.point_value)
 
-        alphagram = None
-        for word, worddata in matching_words.items():
-            if (
-                args.separate
-                and alphagram is not None
-                and alphagram != worddata["alphagram"]
-            ):
-                print()
-            if args.long:
-                print("\t".join(str(v) for v in worddata.values()))
-            else:
-                print(
-                    "\t".join(
-                        [
-                            worddata["alphagram"],
-                            worddata["word"],
-                            worddata["definition"],
-                        ]
-                    )
+def print_results(results, separate=True, long=False):
+    alphagram = None
+    for worddata in results.values():
+        if (
+            separate
+            and alphagram is not None
+            and alphagram != worddata["alphagram"]
+        ):
+            print()
+        if long:
+            print("\t".join(str(v) for v in worddata.values()))
+        else:
+            print(
+                "\t".join(
+                    [
+                        worddata["alphagram"],
+                        worddata["word"],
+                        worddata["definition"],
+                    ]
                 )
-            alphagram = worddata["alphagram"]
+            )
+        alphagram = worddata["alphagram"]
+
+def build_parser():
+    parser = ArgumentParser(description="")
+    parser.add_argument("-2", action="append_const", dest="length", const=2)
+    parser.add_argument("-3", action="append_const", dest="length", const=3)
+    parser.add_argument("-4", action="append_const", dest="length", const=4)
+    parser.add_argument("-5", action="append_const", dest="length", const=5)
+    parser.add_argument("-6", action="append_const", dest="length", const=6)
+    parser.add_argument("-7", action="append_const", dest="length", const=7)
+    parser.add_argument("-8", action="append_const", dest="length", const=8)
+    parser.add_argument("-9", action="append_const", dest="length", const=9)
+
+    parser.add_argument("-a", "--anagram", action="store_true")
+    parser.add_argument("-s", "--subanagram", action="store_true")
+    parser.add_argument("-e", "--exact", action="store_true")
+
+    parser.add_argument("-d", "--dict", "--dictionary", default="NWL2018")
+
+    parser.add_argument("-l", "--length")
+    parser.add_argument("-v", "--vowels", "--num-vowels")
+    parser.add_argument("-c", "--consonants", "--num-consonants")
+    parser.add_argument("-V", "--percent-vowels", "--pct-vowels")
+    parser.add_argument("-C", "--percent-consonants", "--pct-consonants")
+    parser.add_argument("-p", "--probability-order")
+    parser.add_argument("-P", "--playability-order")
+    parser.add_argument("--point-value", "--score")
+
+    parser.add_argument("--long", action="store_true")
+    parser.add_argument("--separate", action="store_true")
+
+    parser.add_argument("pattern", metavar="PATTERN", nargs="?", default="\\*")
+
+    return parser
+
+
+def __main__():
+    parser = build_parser()
+
+    args = parser.parse_args()
+
+    with open(f"dicts/{args.dict}.pickle", "rb") as infile:
+        words = pickle.load(infile)
+        results = search(words, args)
+
+    print_results(results, separate=args.separate, long=args.long)
 
 
 if __name__ == "__main__":
